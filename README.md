@@ -11,8 +11,44 @@ This is a PHP port of the official [Polymarket CLOB TypeScript client](https://g
 
 ## Installation
 
+This package is not yet published on Packagist. Use one of the options below.
+
+### Option A: Install from Git (recommended)
+
+Add a VCS repository entry to your project's `composer.json`, then require the `dev-main` version:
+
+```json
+{
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/a3jeu/php-clob-client"
+    }
+  ]
+}
+```
+
 ```bash
-composer require a3jeu/php-clob-client
+composer require a3jeu/php-clob-client:dev-main
+```
+
+### Option B: Install from a local path
+
+Clone this repository locally and reference it as a path repository:
+
+```json
+{
+  "repositories": [
+    {
+      "type": "path",
+      "url": "../php-clob-client"
+    }
+  ]
+}
+```
+
+```bash
+composer require a3jeu/php-clob-client:@dev
 ```
 
 ## Usage
