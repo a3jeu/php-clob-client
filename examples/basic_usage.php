@@ -22,8 +22,17 @@ $host = 'https://clob.polymarket.com';
 $chainId = 137; // Polygon Mainnet
 
 // These should come from environment variables or secure storage
-$privateKey = getenv('POLYMARKET_PRIVATE_KEY') ?: 'your_private_key_here';
-$address = getenv('POLYMARKET_ADDRESS') ?: 'your_ethereum_address';
+$privateKey = getenv('POLYMARKET_PRIVATE_KEY');
+$address = getenv('POLYMARKET_ADDRESS');
+
+if (!$privateKey || !$address) {
+    echo "ERROR: Required environment variables not set.\n";
+    echo "Please set POLYMARKET_PRIVATE_KEY and POLYMARKET_ADDRESS\n";
+    echo "\nFor testing, you can run:\n";
+    echo "export POLYMARKET_PRIVATE_KEY='your_private_key_without_0x'\n";
+    echo "export POLYMARKET_ADDRESS='0xYourEthereumAddress'\n";
+    exit(1);
+}
 
 echo "=== Polymarket PHP CLOB Client Example ===\n\n";
 

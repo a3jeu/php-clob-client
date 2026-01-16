@@ -42,11 +42,14 @@ class ClobClient
 
     /**
      * Create API key
+     * 
+     * WARNING: Credentials cannot be recovered after creation. Store them safely!
      */
     public function createApiKey(?int $nonce = null): ApiKeyCreds
     {
-        echo Constants::CREDS_CREATION_WARNING . "\n";
-
+        // Note: Callers should be aware that credentials cannot be recovered
+        // Consider logging this warning in your application
+        
         $headers = HeaderBuilder::createL1Headers(
             $this->privateKey,
             $this->address,

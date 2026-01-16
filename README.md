@@ -130,11 +130,14 @@ $keys = $client->getApiKeys();
 $result = $client->deleteApiKey();
 
 // Create a new API key
+// Note: Credentials cannot be recovered after creation - store them safely!
 $newCreds = $client->createApiKey();
 
 // Derive existing API key
 $existingCreds = $client->deriveApiKey();
 ```
+
+**Important:** When creating new API credentials, they cannot be recovered if lost. Always store them securely immediately after creation.
 
 ## Types and Enums
 

@@ -56,7 +56,7 @@ try {
 echo "Test 4: Testing HMAC signing... ";
 try {
     $signature = \Polymarket\ClobClient\Signing\HmacSigner::buildPolyHmacSignature(
-        base64_encode('test_secret'),
+        base64_encode('fake_test_secret_for_unit_tests_only'),
         time(),
         'GET',
         '/test'
