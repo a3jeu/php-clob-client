@@ -201,7 +201,12 @@ This PHP client covers the main CLOB API endpoints:
 
 ## Examples
 
-See the [examples](examples/) directory for more usage examples.
+See the [examples](examples/) directory for more usage examples:
+
+- `basic_usage.php` - Comprehensive example showing client initialization and various API calls
+- `test_public_api.php` - Simple test of public API endpoints (no authentication required)
+
+**Note:** Examples require network access to the Polymarket CLOB API at `https://clob.polymarket.com`.
 
 ## Contributing
 
