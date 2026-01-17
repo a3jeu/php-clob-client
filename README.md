@@ -156,6 +156,62 @@ $balance = $client->getBalanceAllowance(
 );
 ```
 
+### Equivalent PHP Example (Magic/Email Login Signature Type)
+
+Below is a PHP equivalent to the Python snippet you shared. It derives an API key using signature type `1` (Magic/Email login), then fetches the USDC collateral balance.
+
+```php
+<?php
+
+require 'vendor/autoload.php';
+
+use Polymarket\ClobClient\ClobClient;
+use Polymarket\ClobClient\Signing\Address;
+use Polymarket\ClobClient\Types\AssetType;
+
+$host = 'https://clob.polymarket.com';
+$chainId = 137; // Polygon mainnet
+$privateKey = getenv('POLYMARKET_PRIVATE_KEY');
+$address = getenv('POLYMARKET_ADDRESS');
+$funder = getenv('POLYMARKET_PROXY_WALLET');
+
+if (!$privateKey || !$funder) {
+    throw new RuntimeException('Missing required POLYMARKET_* environment variables.');
+}
+
+$derivedAddress = Address::fromPrivateKey($privateKey);
+if (!$address || strcasecmp($address, $derivedAddress) !== 0) {
+    $address = $derivedAddress;
+}
+
+$l1Client = new ClobClient(
+    $host,
+    $chainId,
+    $privateKey,
+    $address,
+    null,
+    1, // signature type 1
+    $funder
+);
+
+$creds = $l1Client->deriveApiKey();
+
+$client = new ClobClient(
+    $host,
+    $chainId,
+    $privateKey,
+    $address,
+    $creds,
+    1, // signature type 1
+    $funder
+);
+
+$balance = $client->getBalanceAllowance(AssetType::COLLATERAL->value);
+$usdc = ((float) ($balance['balance'] ?? 0)) / 1e6;
+
+echo "Balance USDC with signature type 1: {$usdc}\n";
+```
+
 ### Managing API Keys
 
 ```php
