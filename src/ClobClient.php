@@ -4,6 +4,7 @@ namespace Polymarket\ClobClient;
 
 use Polymarket\ClobClient\Headers\HeaderBuilder;
 use Polymarket\ClobClient\Http\HttpClient;
+use Polymarket\ClobClient\Signing\Address;
 use Polymarket\ClobClient\Types\ApiKeyCreds;
 use Polymarket\ClobClient\Types\CreateOrderOptions;
 use Polymarket\ClobClient\Types\OrderType;
@@ -21,7 +22,7 @@ class ClobClient
         private string $host,
         private int $chainId,
         private string $privateKey,
-        private string $address,
+        private ?string $address,
         ?ApiKeyCreds $creds = null,
         int $signatureType = 0,
         ?string $funder = null
@@ -29,7 +30,13 @@ class ClobClient
         $this->httpClient = new HttpClient($host);
         $this->creds = $creds;
         $this->signatureType = $signatureType;
-        $this->funder = $funder ?? $address;
+
+        $derivedAddress = Address::fromPrivateKey($privateKey);
+        if (!$this->address || strcasecmp($this->address, $derivedAddress) !== 0) {
+            $this->address = $derivedAddress;
+        }
+
+        $this->funder = $funder ?? $this->address;
     }
 
     /**

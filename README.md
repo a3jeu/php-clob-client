@@ -166,6 +166,7 @@ Below is a PHP equivalent to the Python snippet you shared. It derives an API ke
 require 'vendor/autoload.php';
 
 use Polymarket\ClobClient\ClobClient;
+use Polymarket\ClobClient\Signing\Address;
 use Polymarket\ClobClient\Types\AssetType;
 
 $host = 'https://clob.polymarket.com';
@@ -174,8 +175,13 @@ $privateKey = getenv('POLYMARKET_PRIVATE_KEY');
 $address = getenv('POLYMARKET_ADDRESS');
 $funder = getenv('POLYMARKET_PROXY_WALLET');
 
-if (!$privateKey || !$address || !$funder) {
+if (!$privateKey || !$funder) {
     throw new RuntimeException('Missing required POLYMARKET_* environment variables.');
+}
+
+$derivedAddress = Address::fromPrivateKey($privateKey);
+if (!$address || strcasecmp($address, $derivedAddress) !== 0) {
+    $address = $derivedAddress;
 }
 
 $l1Client = new ClobClient(
