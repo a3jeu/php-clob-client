@@ -334,6 +334,9 @@ class ClobClient
         if ($tokenId !== null) {
             $params['token_id'] = $tokenId;
         }
+        if ($this->signatureType !== null) {
+            $params['signature_type'] = $this->signatureType;
+        }
 
         $queryString = http_build_query($params);
         $requestPath = Endpoints::GET_BALANCE_ALLOWANCE . '?' . $queryString;
@@ -342,10 +345,10 @@ class ClobClient
             $this->address,
             $this->creds,
             'GET',
-            $requestPath
+            Endpoints::GET_BALANCE_ALLOWANCE
         );
 
-        return $this->httpClient->get(Endpoints::GET_BALANCE_ALLOWANCE, $headers, $params);
+        return $this->httpClient->get($requestPath, $headers, $params);
     }
 
     /**
