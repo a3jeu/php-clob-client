@@ -195,10 +195,11 @@ class ClobClient
     /**
      * Get negative risk flag
      */
-    public function getNegRisk(string $tokenId): array
+    public function getNegRisk(string $tokenId): bool
     {
         $params = ['token_id' => $tokenId];
-        return $this->httpClient->get(Endpoints::GET_NEG_RISK, [], $params);
+        $response = $this->httpClient->get(Endpoints::GET_NEG_RISK, [], $params);
+        return (bool)($response['neg_risk'] ?? false);
     }
 
     /**
