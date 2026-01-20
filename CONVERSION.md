@@ -124,7 +124,8 @@ $orderType = OrderType::GTC;
 | Cancel All | `cancelAll()` | `cancelAll()` | ✅ |
 | Cancel Market Orders | `cancelMarketOrders(...)` | `cancelMarketOrders(...)` | ✅ |
 | Get Balance Allowance | `getBalanceAllowance(...)` | `getBalanceAllowance(...)` | ✅ |
-| Create and Post Order | `createAndPostOrder(...)` | - | ⚠️ Not Implemented |
+| Create and Post Order | `createAndPostOrder(...)` | `createAndPostOrder(...)` | ✅ |
+| Create Market Order | `createMarketOrder(...)` | `createMarketOrder(...)` | ✅ |
 | RFQ Methods | Various | - | ⚠️ Not Implemented |
 | Builder Methods | Various | - | ⚠️ Not Implemented |
 
