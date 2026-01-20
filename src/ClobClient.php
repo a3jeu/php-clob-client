@@ -559,7 +559,7 @@ class ClobClient
     private function resolveTickSize(string $tokenId, ?string $tickSize): string
     {
         $minTickSizeResponse = $this->getTickSize($tokenId);
-        $minTickSize = $minTickSizeResponse['tick_size'] ?? $minTickSizeResponse['tickSize'] ?? null;
+        $minTickSize = $minTickSizeResponse['minimum_tick_size'] ?? $minTickSizeResponse['minimum_tick_size'] ?? null;
         if ($minTickSize === null) {
             throw new \RuntimeException('Could not resolve tick size for market.');
         }
