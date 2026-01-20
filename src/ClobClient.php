@@ -4,10 +4,13 @@ namespace Polymarket\ClobClient;
 
 use Polymarket\ClobClient\Headers\HeaderBuilder;
 use Polymarket\ClobClient\Http\HttpClient;
+use Polymarket\ClobClient\OrderBuilder\OrderBuilder;
+use Polymarket\ClobClient\OrderBuilder\OrderUtils;
 use Polymarket\ClobClient\Types\ApiKeyCreds;
 use Polymarket\ClobClient\Types\CreateOrderOptions;
 use Polymarket\ClobClient\Types\OrderType;
 use Polymarket\ClobClient\Types\Side;
+use Polymarket\ClobClient\Types\UserMarketOrder;
 use Polymarket\ClobClient\Types\UserOrder;
 
 class ClobClient
@@ -16,6 +19,7 @@ class ClobClient
     private ?ApiKeyCreds $creds = null;
     private int $signatureType;
     private ?string $funder = null;
+    private ?OrderBuilder $orderBuilder = null;
 
     public function __construct(
         private string $host,
@@ -30,6 +34,13 @@ class ClobClient
         $this->creds = $creds;
         $this->signatureType = $signatureType;
         $this->funder = $funder ?? $address;
+        $this->orderBuilder = $privateKey !== '' ? new OrderBuilder(
+            $privateKey,
+            $address,
+            $chainId,
+            $signatureType,
+            $this->funder
+        ) : null;
     }
 
     /**
@@ -228,6 +239,86 @@ class ClobClient
     }
 
     /**
+     * Create and sign a limit order
+     */
+    public function createOrder(UserOrder $userOrder, ?CreateOrderOptions $options = null): array
+    {
+        $this->ensureL1Auth();
+
+        $tickSize = $this->resolveTickSize($userOrder->tokenID, $options?->tickSize);
+        $feeRateBps = $this->resolveFeeRateBps($userOrder->tokenID, $userOrder->feeRateBps);
+        $userOrder->feeRateBps = $feeRateBps;
+
+        if (!OrderUtils::priceValid($userOrder->price, $tickSize)) {
+            $min = (float)$tickSize;
+            $max = 1 - (float)$tickSize;
+            throw new \RuntimeException("invalid price ({$userOrder->price}), min: {$min} - max: {$max}");
+        }
+
+        $negRisk = $options?->negRisk ?? $this->getNegRisk($userOrder->tokenID);
+
+        return $this->orderBuilder->buildOrder($userOrder, new CreateOrderOptions($tickSize, $negRisk));
+    }
+
+    /**
+     * Create and sign a market order
+     */
+    public function createMarketOrder(UserMarketOrder $userMarketOrder, ?CreateOrderOptions $options = null): array
+    {
+        $this->ensureL1Auth();
+
+        $tickSize = $this->resolveTickSize($userMarketOrder->tokenID, $options?->tickSize);
+        $feeRateBps = $this->resolveFeeRateBps($userMarketOrder->tokenID, $userMarketOrder->feeRateBps);
+        $userMarketOrder->feeRateBps = $feeRateBps;
+
+        if ($userMarketOrder->price === null) {
+            $userMarketOrder->price = $this->calculateMarketPrice(
+                $userMarketOrder->tokenID,
+                $userMarketOrder->side,
+                $userMarketOrder->amount,
+                $userMarketOrder->orderType ?? OrderType::FOK
+            );
+        }
+
+        if (!OrderUtils::priceValid($userMarketOrder->price, $tickSize)) {
+            $min = (float)$tickSize;
+            $max = 1 - (float)$tickSize;
+            throw new \RuntimeException("invalid price ({$userMarketOrder->price}), min: {$min} - max: {$max}");
+        }
+
+        $negRisk = $options?->negRisk ?? $this->getNegRisk($userMarketOrder->tokenID);
+
+        return $this->orderBuilder->buildMarketOrder($userMarketOrder, new CreateOrderOptions($tickSize, $negRisk));
+    }
+
+    /**
+     * Create and post an order
+     */
+    public function createAndPostOrder(
+        UserOrder $userOrder,
+        ?CreateOrderOptions $options = null,
+        OrderType $orderType = OrderType::GTC,
+        bool $deferExec = false,
+        bool $postOnly = false
+    ): array {
+        $order = $this->createOrder($userOrder, $options);
+        return $this->postOrder($order, $orderType, $deferExec, $postOnly);
+    }
+
+    /**
+     * Create and post a market order
+     */
+    public function createAndPostMarketOrder(
+        UserMarketOrder $userMarketOrder,
+        ?CreateOrderOptions $options = null,
+        OrderType $orderType = OrderType::FOK,
+        bool $deferExec = false
+    ): array {
+        $order = $this->createMarketOrder($userMarketOrder, $options);
+        return $this->postOrder($order, $orderType, $deferExec);
+    }
+
+    /**
      * Get trades
      */
     public function getTrades(): array
@@ -247,11 +338,23 @@ class ClobClient
     /**
      * Post an order
      */
-    public function postOrder(array $signedOrder): array
+    public function postOrder(
+        array $signedOrder,
+        OrderType $orderType = OrderType::GTC,
+        bool $deferExec = false,
+        bool $postOnly = false
+    ): array
     {
         $this->ensureL2Auth();
 
-        $body = json_encode($signedOrder);
+        $payload = OrderUtils::orderToPayload(
+            $signedOrder,
+            $this->creds?->key ?? '',
+            $orderType,
+            $deferExec,
+            $postOnly
+        );
+        $body = json_encode($payload);
         $headers = HeaderBuilder::createL2Headers(
             $this->address,
             $this->creds,
@@ -260,7 +363,89 @@ class ClobClient
             $body
         );
 
-        return $this->httpClient->post(Endpoints::POST_ORDER, $headers, $signedOrder);
+        return $this->httpClient->post(Endpoints::POST_ORDER, $headers, $payload);
+    }
+
+    /**
+     * Post multiple orders
+     */
+    public function postOrders(array $orders, bool $deferExec = false, bool $defaultPostOnly = false): array
+    {
+        $this->ensureL2Auth();
+
+        $payload = [];
+        foreach ($orders as $entry) {
+            $order = $entry['order'] ?? null;
+            $orderType = $entry['orderType'] ?? OrderType::GTC;
+            $postOnly = $entry['postOnly'] ?? $defaultPostOnly;
+            if (!$order || !$orderType instanceof OrderType) {
+                throw new \InvalidArgumentException('Orders must include order and orderType.');
+            }
+            $payload[] = OrderUtils::orderToPayload(
+                $order,
+                $this->creds?->key ?? '',
+                $orderType,
+                $deferExec,
+                $postOnly
+            );
+        }
+
+        $body = json_encode($payload);
+        $headers = HeaderBuilder::createL2Headers(
+            $this->address,
+            $this->creds,
+            'POST',
+            Endpoints::POST_ORDERS,
+            $body
+        );
+
+        return $this->httpClient->post(Endpoints::POST_ORDERS, $headers, $payload);
+    }
+
+    /**
+     * Cancel multiple orders by hash
+     */
+    public function cancelOrders(array $ordersHashes): array
+    {
+        $this->ensureL2Auth();
+
+        $body = json_encode($ordersHashes);
+        $headers = HeaderBuilder::createL2Headers(
+            $this->address,
+            $this->creds,
+            'DELETE',
+            Endpoints::CANCEL_ORDERS,
+            $body
+        );
+
+        return $this->httpClient->delete(Endpoints::CANCEL_ORDERS, $headers, $ordersHashes);
+    }
+
+    /**
+     * Calculate market price for a market order
+     */
+    public function calculateMarketPrice(
+        string $tokenId,
+        Side $side,
+        float $amount,
+        OrderType $orderType = OrderType::FOK
+    ): float {
+        $book = $this->getOrderBook($tokenId);
+        if (!$book) {
+            throw new \RuntimeException('no orderbook');
+        }
+
+        if ($side === Side::BUY) {
+            if (empty($book['asks'])) {
+                throw new \RuntimeException('no match');
+            }
+            return OrderUtils::calculateBuyMarketPrice($book['asks'], $amount, $orderType);
+        }
+
+        if (empty($book['bids'])) {
+            throw new \RuntimeException('no match');
+        }
+        return OrderUtils::calculateSellMarketPrice($book['bids'], $amount, $orderType);
     }
 
     /**
@@ -359,5 +544,54 @@ class ClobClient
         if ($this->creds === null) {
             throw new \RuntimeException('L2 authentication not available. API credentials required.');
         }
+    }
+
+    /**
+     * Ensure L1 authentication is available
+     */
+    private function ensureL1Auth(): void
+    {
+        if ($this->orderBuilder === null) {
+            throw new \RuntimeException('L1 authentication not available. Private key required.');
+        }
+    }
+
+    private function resolveTickSize(string $tokenId, ?string $tickSize): string
+    {
+        $minTickSizeResponse = $this->getTickSize($tokenId);
+        $minTickSize = $minTickSizeResponse['tick_size'] ?? $minTickSizeResponse['tickSize'] ?? null;
+        if ($minTickSize === null) {
+            throw new \RuntimeException('Could not resolve tick size for market.');
+        }
+
+        if ($tickSize !== null) {
+            if (OrderUtils::isTickSizeSmaller($tickSize, (string)$minTickSize)) {
+                throw new \RuntimeException(
+                    "invalid tick size ({$tickSize}), minimum for the market is {$minTickSize}"
+                );
+            }
+            return $tickSize;
+        }
+
+        return (string)$minTickSize;
+    }
+
+    private function resolveFeeRateBps(string $tokenId, ?int $userFeeRateBps): int
+    {
+        $feeRateResponse = $this->getFeeRate($tokenId);
+        $marketFeeRateBps = (int)($feeRateResponse['fee_rate_bps'] ?? $feeRateResponse['feeRateBps'] ?? 0);
+        if ($marketFeeRateBps > 0 && $userFeeRateBps !== null && $userFeeRateBps !== $marketFeeRateBps) {
+            throw new \RuntimeException(
+                "invalid user provided fee rate: {$userFeeRateBps}, fee rate for the market must be {$marketFeeRateBps}"
+            );
+        }
+
+        return $marketFeeRateBps;
+    }
+
+    private function getFeeRate(string $tokenId): array
+    {
+        $params = ['token_id' => $tokenId];
+        return $this->httpClient->get(Endpoints::GET_FEE_RATE, [], $params);
     }
 }

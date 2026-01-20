@@ -125,11 +125,37 @@ $negRisk = $client->getNegRisk('token_id_here');
 ### Managing Orders
 
 ```php
+use Polymarket\ClobClient\Types\UserOrder;
+use Polymarket\ClobClient\Types\UserMarketOrder;
+use Polymarket\ClobClient\Types\OrderType;
+
 // Get your open orders
 $openOrders = $client->getOpenOrders();
 
 // Get your trades
 $trades = $client->getTrades();
+
+// Create and post a limit order
+$order = new UserOrder(
+    'token_id_here',
+    0.55,
+    10,
+    Side::BUY
+);
+$result = $client->createAndPostOrder($order, null, OrderType::GTC);
+
+// Create and post a market order
+$marketOrder = new UserMarketOrder(
+    'token_id_here',
+    25,
+    Side::SELL,
+    null,
+    null,
+    null,
+    null,
+    OrderType::FOK
+);
+$result = $client->createAndPostMarketOrder($marketOrder, null, OrderType::FOK);
 
 // Cancel a specific order
 $result = $client->cancelOrder('order_id_here');
@@ -139,6 +165,9 @@ $result = $client->cancelAll();
 
 // Cancel orders for a specific market
 $result = $client->cancelMarketOrders('market_id', 'asset_id');
+
+// Cancel multiple orders by hash
+$result = $client->cancelOrders(['order_hash_1', 'order_hash_2']);
 ```
 
 ### Checking Balance and Allowance
@@ -233,7 +262,7 @@ This PHP client covers the main CLOB API endpoints:
 - ✅ Order management (get, post, cancel)
 - ✅ Trade history
 - ✅ Balance and allowance queries
-- ⚠️ Order creation with signing (partial)
+- ✅ Order creation with signing
 - ⚠️ RFQ functionality (not yet implemented)
 - ⚠️ Builder API (not yet implemented)
 - ⚠️ Rewards and earnings (not yet implemented)
