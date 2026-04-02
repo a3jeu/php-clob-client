@@ -581,6 +581,11 @@ class ClobClient
     {
         $feeRateResponse = $this->getFeeRate($tokenId);
         $marketFeeRateBps = (int)($feeRateResponse['fee_rate_bps'] ?? $feeRateResponse['feeRateBps'] ?? 0);
+
+        if ($marketFeeRateBps <= 0 && $userFeeRateBps !== null && $userFeeRateBps > 0) {
+            return $userFeeRateBps;
+        }
+
         if ($marketFeeRateBps > 0 && $userFeeRateBps !== null && $userFeeRateBps !== $marketFeeRateBps) {
             throw new \RuntimeException(
                 "invalid user provided fee rate: {$userFeeRateBps}, fee rate for the market must be {$marketFeeRateBps}"
