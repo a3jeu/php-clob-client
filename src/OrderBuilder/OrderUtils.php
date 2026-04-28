@@ -185,23 +185,23 @@ class OrderUtils
         $makerAmount = self::parseUnits((string)$amounts['rawMakerAmt'], Config::COLLATERAL_TOKEN_DECIMALS);
         $takerAmount = self::parseUnits((string)$amounts['rawTakerAmt'], Config::COLLATERAL_TOKEN_DECIMALS);
 
-        $taker = $userOrder->taker ?: Constants::ZERO_ADDRESS;
-        $feeRateBps = $userOrder->feeRateBps ?? 0;
-        $nonce = $userOrder->nonce ?? 0;
-        $expiration = $userOrder->expiration ?? 0;
+        $expiration = (string)($userOrder->expiration ?? 0);
+        $timestamp = (string)(intval(microtime(true) * 1000));
+        $metadata = self::normalizeBytes32($userOrder->metadata ?? Constants::ZERO_BYTES32);
+        $builder = self::normalizeBytes32($userOrder->builderCode ?? Constants::ZERO_BYTES32);
 
         return [
             'maker' => $maker,
-            'taker' => $taker,
             'tokenId' => $userOrder->tokenID,
             'makerAmount' => $makerAmount,
             'takerAmount' => $takerAmount,
             'side' => $amounts['side'],
-            'feeRateBps' => (string)$feeRateBps,
-            'nonce' => (string)$nonce,
             'signer' => $signer,
-            'expiration' => (string)$expiration,
+            'expiration' => $expiration,
             'signatureType' => $signatureType,
+            'timestamp' => $timestamp,
+            'metadata' => $metadata,
+            'builder' => $builder,
         ];
     }
 
@@ -218,22 +218,22 @@ class OrderUtils
         $makerAmount = self::parseUnits((string)$amounts['rawMakerAmt'], Config::COLLATERAL_TOKEN_DECIMALS);
         $takerAmount = self::parseUnits((string)$amounts['rawTakerAmt'], Config::COLLATERAL_TOKEN_DECIMALS);
 
-        $taker = $userMarketOrder->taker ?: Constants::ZERO_ADDRESS;
-        $feeRateBps = $userMarketOrder->feeRateBps ?? 0;
-        $nonce = $userMarketOrder->nonce ?? 0;
+        $timestamp = (string)(intval(microtime(true) * 1000));
+        $metadata = self::normalizeBytes32($userMarketOrder->metadata ?? Constants::ZERO_BYTES32);
+        $builder = self::normalizeBytes32($userMarketOrder->builderCode ?? Constants::ZERO_BYTES32);
 
         return [
             'maker' => $maker,
-            'taker' => $taker,
             'tokenId' => $userMarketOrder->tokenID,
             'makerAmount' => $makerAmount,
             'takerAmount' => $takerAmount,
             'side' => $amounts['side'],
-            'feeRateBps' => (string)$feeRateBps,
-            'nonce' => (string)$nonce,
             'signer' => $signer,
             'expiration' => '0',
             'signatureType' => $signatureType,
+            'timestamp' => $timestamp,
+            'metadata' => $metadata,
+            'builder' => $builder,
         ];
     }
 
@@ -256,15 +256,15 @@ class OrderUtils
                 'salt' => (int)$order['salt'],
                 'maker' => $order['maker'],
                 'signer' => $order['signer'],
-                'taker' => $order['taker'],
                 'tokenId' => $order['tokenId'],
                 'makerAmount' => $order['makerAmount'],
                 'takerAmount' => $order['takerAmount'],
                 'side' => $side,
-                'expiration' => (string)$order['expiration'],
-                'nonce' => (string)$order['nonce'],
-                'feeRateBps' => (string)$order['feeRateBps'],
+                'expiration' => (string)($order['expiration'] ?? '0'),
                 'signatureType' => (int)$order['signatureType'],
+                'timestamp' => $order['timestamp'],
+                'metadata' => $order['metadata'],
+                'builder' => $order['builder'],
                 'signature' => $order['signature'],
             ],
             'owner' => $owner,
@@ -352,5 +352,21 @@ class OrderUtils
 
         $value = rtrim($value, '0');
         return rtrim($value, '.');
+    }
+
+    /**
+     * Validate and normalize a bytes32 hex string.
+     * Accepts '0x' followed by exactly 64 hex chars.
+     * Returns the canonical '0x'-prefixed 64-char hex string.
+     */
+    public static function normalizeBytes32(string $value): string
+    {
+        $hex = str_replace('0x', '', strtolower($value));
+        if (!ctype_xdigit($hex) || strlen($hex) !== 64) {
+            throw new \InvalidArgumentException(
+                "Invalid bytes32 value: '$value'. Expected 0x followed by 64 hex characters."
+            );
+        }
+        return '0x' . $hex;
     }
 }

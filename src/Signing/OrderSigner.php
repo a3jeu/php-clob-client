@@ -9,9 +9,9 @@ use Polymarket\ClobClient\OrderBuilder\OrderUtils;
 class OrderSigner
 {
     private const DOMAIN_NAME = 'Polymarket CTF Exchange';
-    private const DOMAIN_VERSION = '1';
+    private const DOMAIN_VERSION = '2';
     private const DOMAIN_TYPE = 'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)';
-    private const ORDER_TYPE = 'Order(uint256 salt,address maker,address signer,address taker,uint256 tokenId,uint256 makerAmount,uint256 takerAmount,uint256 expiration,uint256 nonce,uint256 feeRateBps,uint8 side,uint8 signatureType)';
+    private const ORDER_TYPE = 'Order(uint256 salt,address maker,address signer,uint256 tokenId,uint256 makerAmount,uint256 takerAmount,uint8 side,uint8 signatureType,uint256 timestamp,bytes32 metadata,bytes32 builder)';
 
     public static function signOrder(array $order, int $chainId, string $exchangeAddress, string $privateKey): string
     {
@@ -42,15 +42,14 @@ class OrderSigner
             . self::encodeUint((string)$order['salt'])
             . self::encodeAddress($order['maker'])
             . self::encodeAddress($order['signer'])
-            . self::encodeAddress($order['taker'])
             . self::encodeUint((string)$order['tokenId'])
             . self::encodeUint((string)$order['makerAmount'])
             . self::encodeUint((string)$order['takerAmount'])
-            . self::encodeUint((string)$order['expiration'])
-            . self::encodeUint((string)$order['nonce'])
-            . self::encodeUint((string)$order['feeRateBps'])
             . self::encodeUint((string)$order['side'])
-            . self::encodeUint((string)$order['signatureType']);
+            . self::encodeUint((string)$order['signatureType'])
+            . self::encodeUint((string)$order['timestamp'])
+            . self::encodeBytes32($order['metadata'])
+            . self::encodeBytes32($order['builder']);
 
         return Keccak::hash(hex2bin($encoded), 256);
     }
@@ -71,6 +70,13 @@ class OrderSigner
     {
         $hex = self::decimalToHex($value);
         return str_pad($hex, 64, '0', STR_PAD_LEFT);
+    }
+
+    private static function encodeBytes32(string $value): string
+    {
+        $hex = str_replace('0x', '', strtolower($value));
+        // bytes32 values are right-padded in EIP-712 ABI encoding
+        return str_pad($hex, 64, '0', STR_PAD_RIGHT);
     }
 
     private static function decimalToHex(string $value): string

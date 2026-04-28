@@ -46,6 +46,9 @@ try {
     $config = Config::getContractConfig(137);
     assert(isset($config['exchange']));
     assert(isset($config['collateral']));
+    // V2 exchange addresses
+    assert($config['exchange'] === '0xE111180000d2663C0091e4f400237545B87B996B', 'V2 exchange address mismatch');
+    assert($config['collateral'] === '0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB', 'V2 pUSD collateral address mismatch');
     echo "✓ PASS\n";
 } catch (Exception $e) {
     echo "✗ FAIL: " . $e->getMessage() . "\n";
@@ -62,6 +65,27 @@ try {
         '/test'
     );
     assert(!empty($signature));
+    echo "✓ PASS\n";
+} catch (Exception $e) {
+    echo "✗ FAIL: " . $e->getMessage() . "\n";
+    exit(1);
+}
+
+// Test 5: Test bytes32 normalization
+echo "Test 5: Testing bytes32 validation... ";
+try {
+    $valid = \Polymarket\ClobClient\OrderBuilder\OrderUtils::normalizeBytes32(
+        '0x0000000000000000000000000000000000000000000000000000000000000000'
+    );
+    assert($valid === '0x0000000000000000000000000000000000000000000000000000000000000000');
+
+    $invalidTriggered = false;
+    try {
+        \Polymarket\ClobClient\OrderBuilder\OrderUtils::normalizeBytes32('0xdeadbeef');
+    } catch (\InvalidArgumentException $e) {
+        $invalidTriggered = true;
+    }
+    assert($invalidTriggered, 'Should have thrown for short bytes32');
     echo "✓ PASS\n";
 } catch (Exception $e) {
     echo "✗ FAIL: " . $e->getMessage() . "\n";

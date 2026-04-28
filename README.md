@@ -1,8 +1,10 @@
 # PHP CLOB Client
 
-PHP client for the Polymarket CLOB (Central Limit Order Book).
+PHP client for the Polymarket CLOB (Central Limit Order Book) **V2**.
 
-This is a PHP port of the official [Polymarket CLOB TypeScript client](https://github.com/Polymarket/clob-client).
+This is a PHP port of the official [Polymarket CLOB TypeScript client (V2)](https://github.com/Polymarket/clob-client-v2).
+
+> **Note:** This library targets the **CLOB V2 API** (live since April 28, 2026). It is **not** compatible with the V1 API. See the [official V2 migration guide](https://docs.polymarket.com/v2-migration) for details on what changed.
 
 ## Requirements
 
@@ -138,21 +140,28 @@ $trades = $client->getTrades();
 // Create and post a limit order
 $order = new UserOrder(
     'token_id_here',
-    0.55,
-    10,
+    0.55,  // price
+    10,    // size
     Side::BUY
 );
 $result = $client->createAndPostOrder($order, null, OrderType::GTC);
 
+// Limit order with builder attribution (optional)
+$order = new UserOrder(
+    'token_id_here',
+    0.55,
+    10,
+    Side::BUY,
+    null,  // expiration (null = no expiry)
+    '0xYourBuilderCode000000000000000000000000000000000000000000000000' // builderCode (bytes32)
+);
+
 // Create and post a market order
 $marketOrder = new UserMarketOrder(
     'token_id_here',
-    25,
+    25,        // amount in collateral (pUSD)
     Side::SELL,
-    null,
-    null,
-    null,
-    null,
+    null,      // price (auto-calculated from order book)
     OrderType::FOK
 );
 $result = $client->createAndPostMarketOrder($marketOrder, null, OrderType::FOK);
@@ -175,7 +184,7 @@ $result = $client->cancelOrders(['order_hash_1', 'order_hash_2']);
 ```php
 use Polymarket\ClobClient\Types\AssetType;
 
-// Get balance and allowance for collateral
+// Get balance and allowance for collateral (pUSD)
 $balance = $client->getBalanceAllowance(AssetType::COLLATERAL->value);
 
 // Get balance and allowance for a specific conditional token
@@ -206,6 +215,34 @@ $existingCreds = $client->deriveApiKey();
 
 ## Types and Enums
 
+### UserOrder (limit order)
+
+```php
+new UserOrder(
+    tokenID: 'token_id_here',
+    price: 0.55,
+    size: 10.0,
+    side: Side::BUY,
+    expiration: null,       // optional — Unix timestamp for GTD orders
+    builderCode: null,      // optional — bytes32 builder attribution code
+    metadata: null          // optional — bytes32 custom metadata
+)
+```
+
+### UserMarketOrder (market order)
+
+```php
+new UserMarketOrder(
+    tokenID: 'token_id_here',
+    amount: 25.0,
+    side: Side::SELL,
+    price: null,            // optional — leave null to auto-calculate from order book
+    orderType: OrderType::FOK,
+    builderCode: null,      // optional — bytes32 builder attribution code
+    metadata: null          // optional — bytes32 custom metadata
+)
+```
+
 ### Side
 
 ```php
@@ -226,7 +263,7 @@ OrderType::FAK  // Fill and Kill
 
 ```php
 Chain::POLYGON  // 137 - Polygon Mainnet
-Chain::AMOY     // 80002 - Amoy Testnet
+Chain::AMOY     // 80002 - Amoy Testnet (V2 addresses not yet documented)
 ```
 
 ### AssetType
@@ -238,10 +275,30 @@ AssetType::CONDITIONAL
 
 ## Configuration
 
-The client automatically configures contract addresses based on the chain ID:
+Contract addresses are selected automatically by chain ID:
 
-- **Polygon (137)**: Production contracts
-- **Amoy (80002)**: Test contracts
+| Chain | Exchange | Collateral |
+|-------|----------|-----------|
+| Polygon (137) | `0xE111180000d2663C0091e4f400237545B87B996B` | pUSD `0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB` |
+| Amoy (80002) | V1 addresses (V2 not yet documented) | USDC.e |
+
+### Collateral token: USDC.e → pUSD
+
+V2 uses **pUSD** (Polymarket USD) as collateral instead of USDC.e. pUSD is a standard ERC-20 on Polygon backed by USDC. API-only traders need to wrap USDC.e into pUSD using the [CollateralOnramp contract](https://docs.polymarket.com/concepts/pusd) before trading.
+
+## V2 API Changes Summary
+
+Compared to the previous V1 client:
+
+| What changed | V1 | V2 |
+|---|---|---|
+| EIP-712 domain version | `"1"` | `"2"` |
+| Exchange contracts | Old addresses | New V2 addresses |
+| Collateral token | USDC.e | pUSD |
+| `feeRateBps` on orders | Required | **Removed** — fees set by protocol at match time |
+| `nonce` on orders | Required | **Removed** — replaced by `timestamp` (ms) |
+| `taker` on orders | Required | **Removed** |
+| Builder attribution | HMAC headers | `builderCode` field on the order (bytes32) |
 
 ## Security Notes
 
@@ -262,7 +319,7 @@ This PHP client covers the main CLOB API endpoints:
 - ✅ Order management (get, post, cancel)
 - ✅ Trade history
 - ✅ Balance and allowance queries
-- ✅ Order creation with signing
+- ✅ Order creation with V2 EIP-712 signing
 - ⚠️ RFQ functionality (not yet implemented)
 - ⚠️ Builder API (not yet implemented)
 - ⚠️ Rewards and earnings (not yet implemented)
@@ -286,8 +343,9 @@ MIT License - see LICENSE file for details
 
 ## Related Projects
 
-- [Official TypeScript Client](https://github.com/Polymarket/clob-client)
+- [Official TypeScript Client V2](https://github.com/Polymarket/clob-client-v2)
 - [Polymarket Documentation](https://docs.polymarket.com/)
+- [V2 Migration Guide](https://docs.polymarket.com/v2-migration)
 
 ## Disclaimer
 

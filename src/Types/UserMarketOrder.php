@@ -9,10 +9,9 @@ class UserMarketOrder
         public float $amount,
         public Side $side,
         public ?float $price = null,
-        public ?int $feeRateBps = null,
-        public ?int $nonce = null,
-        public ?string $taker = null,
-        public ?OrderType $orderType = null
+        public ?OrderType $orderType = null,
+        public ?string $builderCode = null,
+        public ?string $metadata = null
     ) {}
 
     public function toArray(): array
@@ -26,17 +25,14 @@ class UserMarketOrder
         if ($this->price !== null) {
             $data['price'] = $this->price;
         }
-        if ($this->feeRateBps !== null) {
-            $data['feeRateBps'] = $this->feeRateBps;
-        }
-        if ($this->nonce !== null) {
-            $data['nonce'] = $this->nonce;
-        }
-        if ($this->taker !== null) {
-            $data['taker'] = $this->taker;
-        }
         if ($this->orderType !== null) {
             $data['orderType'] = $this->orderType->value;
+        }
+        if ($this->builderCode !== null) {
+            $data['builderCode'] = $this->builderCode;
+        }
+        if ($this->metadata !== null) {
+            $data['metadata'] = $this->metadata;
         }
 
         return $data;
